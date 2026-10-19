@@ -27,12 +27,12 @@ use oxc_ast_visit::{Visit, walk};
 use oxc_semantic::{ScopeId, Scoping, SemanticBuilder, SymbolId};
 use oxc_span::{GetSpan, Span};
 
-use crate::directives::relative_id;
-use crate::directives::xxhash::xxhash32;
 use crate::shared::ast::{
     expression_to_argument, import_named, object_property, variable_statement,
 };
 use crate::shared::ast_builder::AstBuilder;
+use crate::shared::paths::relative_id;
+use crate::shared::xxhash::xxhash32;
 
 use super::signature::{CommentInfo, Printer};
 

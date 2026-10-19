@@ -19,18 +19,17 @@
 mod signature;
 mod transform;
 
-use napi::bindgen_prelude::*;
-use napi_derive::napi;
+use crate::error::{Error, Result};
 use oxc_allocator::Allocator;
 use oxc_codegen::{Codegen, CodegenOptions};
 use oxc_parser::{ParseOptions, Parser};
 
-use crate::config::{TransformResult, source_type_for_filename};
+use oxc_span::SourceType;
 use transform::{Bundler, RefreshConfig, RefreshTransform};
 
 pub const DEFAULT_IMPORT_SOURCE: &str = "solid-refresh";
 
-#[napi(object)]
+#[cfg_attr(feature = "node", napi_derive::napi(object))]
 #[derive(Default)]
 pub struct TransformRefreshOptions {
     /// Used for `location` metadata (cwd-relative, like the Babel plugin)
@@ -58,23 +57,29 @@ pub struct TransformRefreshOptions {
     pub source_map: Option<bool>,
 }
 
+#[derive(Debug)]
+pub struct RefreshOutput {
+    pub code: String,
+    pub map: Option<String>,
+}
+
 pub fn transform_refresh(
     code: String,
     options: Option<TransformRefreshOptions>,
-) -> Result<TransformResult> {
+) -> Result<RefreshOutput> {
     let options = options.unwrap_or_default();
 
     let bundler = match options.bundler.as_deref() {
         None | Some("standard") => Bundler::Standard,
         Some("vite") => Bundler::Vite,
         Some(other) => {
-            return Err(Error::from_reason(format!(
+            return Err(Error::configuration(format!(
                 "transformRefresh `bundler` option must be \"vite\" or \"standard\", got {other:?}"
             )));
         }
     };
     if options.jsx == Some(true) {
-        return Err(Error::from_reason(
+        return Err(Error::configuration(
             "transformRefresh does not support `jsx: true` (JSX-granularity mode); pass `jsx: false` like vite-plugin-solid does",
         ));
     }
@@ -90,7 +95,12 @@ pub fn transform_refresh(
             .unwrap_or_else(|| DEFAULT_IMPORT_SOURCE.to_string()),
     };
 
-    let source_type = source_type_for_filename(options.filename.as_deref())?;
+    let source_type = match options.filename.as_deref() {
+        Some(filename) if filename.ends_with(".tsrx") => SourceType::tsx(),
+        Some(filename) => SourceType::from_path(filename)
+            .map_err(|error| Error::configuration(error.to_string()))?,
+        None => SourceType::tsx(),
+    };
     let allocator = Allocator::default();
     let parsed = Parser::new(&allocator, &code, source_type)
         .with_options(ParseOptions {
@@ -99,7 +109,7 @@ pub fn transform_refresh(
         })
         .parse();
     if let Some(error) = crate::shared::parser::first_parser_error(parsed.diagnostics) {
-        return Err(Error::from_reason(error));
+        return Err(Error::parse(error));
     }
 
     let mut program = parsed.program;
@@ -110,12 +120,7 @@ pub fn transform_refresh(
     if !changed {
         // Skipped modules (`@refresh skip`) and modules with nothing to
         // register come back untouched.
-        return Ok(TransformResult {
-            code,
-            map: None,
-            css: None,
-            css_hash: None,
-        });
+        return Ok(RefreshOutput { code, map: None });
     }
 
     let build = Codegen::new()
@@ -127,10 +132,8 @@ pub fn transform_refresh(
         })
         .build(&program);
 
-    Ok(TransformResult {
+    Ok(RefreshOutput {
         code: build.code,
         map: build.map.map(|map| map.to_json_string()),
-        css: None,
-        css_hash: None,
     })
 }

@@ -91,6 +91,7 @@ pub(crate) fn xxhash32(input: &str, seed: u32) -> u32 {
 
 /// The JS side renders IDs with `xxHash32(text).toString(16)` — lowercase
 /// hex, no zero padding.
+#[cfg(feature = "node")]
 pub(crate) fn xxhash32_hex(input: &str) -> String {
     format!("{:x}", xxhash32(input, 0))
 }

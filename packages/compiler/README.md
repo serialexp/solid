@@ -203,6 +203,15 @@ let virtual_tsx =
 
 The unstable Rust typecheck projection reports embedded ranges in authored UTF-8 bytes. The N-API adapter converts those ranges to UTF-16 code units for JavaScript tooling.
 
+The host-independent `solidjs_compiler::refresh::transform_refresh` function
+also builds with `--no-default-features`. It accepts source code and optional
+`TransformRefreshOptions`, returning `RefreshOutput { code, map }` or a
+`CompileError`. Set `bundler: Some("vite".into())` for `import.meta.hot` hosts
+and `import_source: Some("solid-js/refresh".into())` for Solid's bundled
+refresh runtime. Run this pass before JSX compilation and compose its source
+map with the JSX compiler's map. The Node `transformRefresh` API retains its
+existing options and result shape.
+
 > **Stability:** the Rust API is unstable while the compiler is pre-1.0. Options, output, and error types may change in any release — pin an exact revision when embedding it.
 
 ## Performance

@@ -19,3 +19,6 @@ pub(crate) mod this;
 pub(crate) mod transform;
 pub(crate) mod utils;
 pub(crate) mod validate;
+
+pub(crate) mod paths;
+pub(crate) mod xxhash;

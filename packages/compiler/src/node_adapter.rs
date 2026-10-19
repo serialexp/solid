@@ -200,7 +200,14 @@ pub fn transform_refresh(
     code: String,
     options: Option<TransformRefreshOptions>,
 ) -> Result<TransformResult> {
-    crate::refresh::transform_refresh(code, options)
+    let output = crate::refresh::transform_refresh(code, options)
+        .map_err(|error| Error::from_reason(error.to_string()))?;
+    Ok(TransformResult {
+        code: output.code,
+        map: output.map,
+        css: None,
+        css_hash: None,
+    })
 }
 
 /// The `sourceNames.primitives` pass — names `createSignal`/`createMemo`/
